@@ -6,7 +6,7 @@
 
 [中文](#-chinese) | [English](#-english)
 
-<img src="https://ai-cursor.com/wp-content/uploads/2024/09/logo-cursor-ai-png.webp" alt="Cursor Logo" width="120"/>
+![TikTok Icon](https://upload.wikimedia.org/wikipedia/en/a/a9/TikTok_logo.svg)
 
 </div>
 
