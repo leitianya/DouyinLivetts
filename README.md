@@ -20,7 +20,7 @@
 
 # 🌏 Chinese
 
-一个简单的抖音读弹幕工具
+一个简单的播放抖音弹幕的工具
 
 ## 功能特点
 
@@ -37,7 +37,7 @@
 
 # 🌟 English
 
-A simple Douyin barrage reading tool.
+A simple tool for playing Tik Tok barrage
 
 ## Features
 
