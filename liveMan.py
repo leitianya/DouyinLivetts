@@ -17,6 +17,8 @@ import time
 import urllib.parse
 from contextlib import contextmanager
 import tkinter as tk
+from time import sleep
+
 from py_mini_racer import MiniRacer
 from unittest.mock import patch
 import requests
@@ -25,19 +27,6 @@ from protobuf.douyin import *
 import uuid
 import threading
 from txt_speak import play_speech_thread
-
-# 全局变量记录上次播放时间
-last_play_time = {
-    "chat": 0,
-    "gift": 0,
-    "like": 0,
-    "follow": 0,
-}
-# 设置最小间隔时间（单位：秒）
-MIN_INTERVAL = 6
-# 定义全局锁
-lock = threading.Lock()
-
 
 @contextmanager
 def patched_popen_encoding(encoding='utf-8'):
@@ -120,6 +109,7 @@ class DouyinLiveWebFetcher:
         self.gift_checkbox = None
         self.speech_enabled = False
         self.gift_enabled = False
+        self.chat_thread = None
 
     def gui(self):
         print("初始化gui窗口！")
@@ -130,7 +120,7 @@ class DouyinLiveWebFetcher:
         window.title("抖音直播信息")
 
         # 设置窗口大小
-        width, height = 350, 80  # 窗口的宽和高
+        width, height = 300, 80  # 窗口的宽和高
 
         # 获取屏幕宽度和高度
         screen_width = window.winfo_screenwidth()
@@ -351,26 +341,9 @@ class DouyinLiveWebFetcher:
         print("WebSocket connection closed.")
 
     def handle_chat_message(self, user_name, content):
-        global last_play_time
-        # 加锁保护
-        with lock:
-            # 检查时间间隔
-            current_time = time.time()
-            elapsed_time = current_time - last_play_time["chat"]
-
-            if elapsed_time < MIN_INTERVAL:
-                wait_time = MIN_INTERVAL - elapsed_time
-                print(f"聊天频率过高，等待{wait_time:.2f}秒后继续播放")
-                time.sleep(wait_time)
-
-            # 更新最后播放时间
-            last_play_time["chat"] = time.time()
-
         unique_id = str(uuid.uuid4())
         output_file = f"msic/MemberMsg_{unique_id}.mp3"
         text = f"{user_name}说：{content}。"
-
-        # 播放语音
         play_speech_thread(text, output_file)
 
     def _parseChatMsg(self, payload):
@@ -381,29 +354,20 @@ class DouyinLiveWebFetcher:
         content = message.content
         print(f"【聊天msg】[{user_id}]{user_name}: {content}")
         if self.speech_enabled:
-            # 使用线程启动转换和播放
-            threading.Thread(target=self.handle_chat_message, args=(user_name, content)).start()
+            # 如果chat_thread线程已存在并且仍在运行，则不创建新的线程
+            if self.chat_thread is not None and self.chat_thread.is_alive():
+                print("当前线程正在处理消息，跳过新线程创建。")
+                return
+
+            # 启动新线程处理消息
+            self.chat_thread = threading.Thread(target=self.handle_chat_message, args=(user_name, content))
+            self.chat_thread.start()
 
     def handle_gift_message(self, user_name, gift_name):
-        global last_play_time
-        with lock:
-            current_time = time.time()
-            elapsed_time = current_time - last_play_time["chat"]
-
-            if elapsed_time < MIN_INTERVAL:
-                wait_time = MIN_INTERVAL - elapsed_time
-                print(f"gift频率过高，等待{wait_time:.2f}秒后继续播放")
-                time.sleep(wait_time)  # 只阻塞当前线程
-
-            # 更新最后播放时间
-            last_play_time["chat"] = time.time()
-
         # 生成唯一的语音文件名
         unique_id = str(uuid.uuid4())
         output_file = f"msic/MemberMsg_{unique_id}.mp3"
         text = f"超级感谢{user_name}老板送出的{gift_name}。"
-
-        # 播放语音
         play_speech_thread(text, output_file)
 
     def _parseGiftMsg(self, payload):
@@ -413,10 +377,15 @@ class DouyinLiveWebFetcher:
         gift_name = message.gift.name
         gift_cnt = message.combo_count
         print(f"【礼物msg】{user_name} 送出了 {gift_name}x{gift_cnt}")
-
         if self.gift_enabled:
-            # 使用线程处理礼物消息
-            threading.Thread(target=self.handle_gift_message, args=(user_name, gift_name)).start()
+            # 如果chat_thread线程已存在并且仍在运行，则不创建新的线程
+            if self.chat_thread is not None and self.chat_thread.is_alive():
+                print("当前线程正在处理消息，跳过新线程创建。")
+                return
+
+            # 启动新线程处理消息
+            self.chat_thread = threading.Thread(target=self.handle_gift_message, args=(user_name, gift_name))
+            self.chat_thread.start()
     
     def _parseLikeMsg(self, payload):
         '''点赞消息'''
