@@ -9,16 +9,16 @@
 import codecs
 import gzip
 import hashlib
+import os
 import random
 import re
 import string
 import subprocess
+import sys
 import time
 import urllib.parse
 from contextlib import contextmanager
 import tkinter as tk
-from time import sleep
-
 from py_mini_racer import MiniRacer
 from unittest.mock import patch
 import requests
@@ -45,6 +45,16 @@ def generateSignature(wss, script_file='sign.js'):
     """
     出现gbk编码问题则修改 python模块subprocess.py的源码中Popen类的__init__函数参数encoding值为 "utf-8"
     """
+    # 获取运行路径
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 打包后的路径
+        base_path = sys._MEIPASS
+    else:
+        # 脚本直接运行时的路径
+        base_path = os.path.dirname(__file__)
+
+    # 获取sign.js的完整路径
+    script_path = os.path.join(base_path, script_file)
     params = ("live_id,aid,version_code,webcast_sdk_version,"
               "room_id,sub_room_id,sub_channel_id,did_rule,"
               "user_unique_id,device_platform,device_type,ac,"
@@ -57,7 +67,7 @@ def generateSignature(wss, script_file='sign.js'):
     md5.update(param.encode())
     md5_param = md5.hexdigest()
 
-    with codecs.open(script_file, 'r', encoding='utf8') as f:
+    with codecs.open(script_path, 'r', encoding='utf8') as f:
         script = f.read()
 
     ctx = MiniRacer()
