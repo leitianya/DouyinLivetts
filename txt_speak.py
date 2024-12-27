@@ -1,4 +1,6 @@
 import random
+import time
+
 import edge_tts
 import threading
 from playsound import playsound
@@ -14,7 +16,10 @@ use_proxy = False
 MAX_RETRIES = 3  # 最大重试次数
 RETRY_DELAY = 1  # 每次重试之间的延迟（秒）
 
-async def async_text_to_speech(v_num, text, output_path):
+def synchronous_text_to_speech(v_num, text, output_path):
+    """
+    使用 edge_tts 进行同步文本转语音的实现。
+    """
     voices = [
         "zh-CN-XiaoxiaoNeural",
         "zh-CN-XiaoyiNeural",
@@ -25,18 +30,15 @@ async def async_text_to_speech(v_num, text, output_path):
     ]
     voice = voices[v_num]  # 固定选择声音
 
-    if use_proxy:
-        tts = edge_tts.Communicate(text, voice, proxy=PROXY)
-    else:
-        tts = edge_tts.Communicate(text, voice)
-
-    await tts.save(output_path)
-
-def text_to_speech(v_num, text, output_path):
-    # 使用 asyncio.run 执行异步方法
     for attempt in range(MAX_RETRIES):
         try:
-            asyncio.run(async_text_to_speech(v_num, text, output_path))
+            # 创建一个事件循环用于运行 edge_tts 的异步调用
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            tts = edge_tts.Communicate(text, voice, proxy=PROXY if use_proxy else None)
+            loop.run_until_complete(tts.save(output_path))
+            loop.close()
+
             if os.path.exists(output_path):
                 return  # 成功生成音频文件，退出重试
             else:
@@ -49,10 +51,10 @@ def text_to_speech(v_num, text, output_path):
             else:
                 raise  # 达到最大重试次数，抛出异常
 
-def play_speech_thread(text, output_mp3):
+def play_speech_thread(text, output_mp3, v_num):
     try:
         os.makedirs(os.path.dirname(output_mp3), exist_ok=True)
-        text_to_speech(0, text, output_mp3)  # 使用固定的语音编号
+        synchronous_text_to_speech(v_num, text, output_mp3)
         play_audio_with_playsound(output_mp3)
         print(f"语音已生成并播放：{output_mp3}")
     except Exception as e:
@@ -72,7 +74,6 @@ def list_audio_devices():
     print("可用音频设备列表:")
     for i, device in enumerate(devices):
         print(f"{i}: {device['name']}")
-
 
 def play_audio(wav_file, device_id=4):
     """播放音频文件"""

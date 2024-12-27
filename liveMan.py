@@ -28,14 +28,15 @@ import uuid
 import threading
 from txt_speak import play_speech_thread
 
+
 @contextmanager
 def patched_popen_encoding(encoding='utf-8'):
     original_popen_init = subprocess.Popen.__init__
-    
+
     def new_popen_init(self, *args, **kwargs):
         kwargs['encoding'] = encoding
         original_popen_init(self, *args, **kwargs)
-    
+
     with patch.object(subprocess.Popen, '__init__', new_popen_init):
         yield
 
@@ -55,19 +56,19 @@ def generateSignature(wss, script_file='sign.js'):
     md5 = hashlib.md5()
     md5.update(param.encode())
     md5_param = md5.hexdigest()
-    
+
     with codecs.open(script_file, 'r', encoding='utf8') as f:
         script = f.read()
-        
+
     ctx = MiniRacer()
     ctx.eval(script)
-    
+
     try:
         signature = ctx.call("get_sign", md5_param)
         return signature
     except Exception as e:
         print(e)
-    
+
     # 以下代码对应js脚本为sign_v0.js
     # context = execjs.compile(script)
     # with patched_popen_encoding(encoding='utf-8'):
@@ -90,7 +91,7 @@ def generateMsToken(length=107):
 
 
 class DouyinLiveWebFetcher:
-    
+
     def __init__(self, live_id):
         """
         直播间弹幕抓取对象
@@ -107,9 +108,11 @@ class DouyinLiveWebFetcher:
         self.label = None  # 显示数据的标签
         self.chat_checkbox = None
         self.gift_checkbox = None
+        self.follow_checkbox = None
         self.speech_enabled = False
         self.gift_enabled = False
-        self.chat_thread = None
+        self.follow_enabled = False
+        self.ws_thread = None
 
     def gui(self):
         print("初始化gui窗口！")
@@ -120,7 +123,7 @@ class DouyinLiveWebFetcher:
         window.title("抖音直播信息")
 
         # 设置窗口大小
-        width, height = 300, 80  # 窗口的宽和高
+        width, height = 250, 80  # 窗口的宽和高
 
         # 获取屏幕宽度和高度
         screen_width = window.winfo_screenwidth()
@@ -157,16 +160,25 @@ class DouyinLiveWebFetcher:
                                             bg="black", fg="white",
                                             activebackground="red",
                                             selectcolor="red")
-        self.chat_checkbox.pack(side=tk.LEFT, padx=5)  # 使用 pack 并将其放在框架的左侧
+        self.chat_checkbox.pack(side=tk.LEFT, padx=5)
 
         # 在框架中添加谢礼物复选框
-        self.gift_checkbox = tk.Checkbutton(checkbox_frame, text="谢礼物",
+        self.gift_checkbox = tk.Checkbutton(checkbox_frame, text="礼物",
                                             variable=tk.BooleanVar(value=self.gift_enabled),
                                             command=self.gift_speech,
                                             bg="black", fg="white",
                                             activebackground="red",
                                             selectcolor="red")
-        self.gift_checkbox.pack(side=tk.LEFT, padx=15)  # 放在框架的左侧并添加间距
+        self.gift_checkbox.pack(side=tk.LEFT, padx=5)
+
+        # 在框架中添加谢关注复选框
+        self.follow_checkbox = tk.Checkbutton(checkbox_frame, text="关注",
+                                            variable=tk.BooleanVar(value=self.follow_enabled),
+                                            command=self.follow_speech,
+                                            bg="black", fg="white",
+                                            activebackground="red",
+                                            selectcolor="red")
+        self.follow_checkbox.pack(side=tk.LEFT, padx=5)
 
         # 添加一个按钮
         # button = tk.Button(window, text="关闭", command=window.quit)
@@ -177,22 +189,29 @@ class DouyinLiveWebFetcher:
 
     def toggle_speech(self):
         """
-        切换语音播放的启用状态
+        切换聊天播报的启用状态
         """
         self.speech_enabled = not self.speech_enabled
-        print(f"聊天 {'启用' if self.speech_enabled else '禁用'}")
+        print(f"聊天播报 {'启用' if self.speech_enabled else '禁用'}")
 
     def gift_speech(self):
         """
-        切换语音播放的启用状态
+        切换礼物播报的启用状态
         """
         self.gift_enabled = not self.gift_enabled
-        print(f"礼物 {'启用' if self.gift_enabled else '禁用'}")
+        print(f"礼物播报 {'启用' if self.gift_enabled else '禁用'}")
+
+    def follow_speech(self):
+        """
+        切换关注播报的启用状态
+        """
+        self.follow_enabled = not self.follow_enabled
+        print(f"关注播报 {'启用' if self.follow_enabled else '禁用'}")
 
     def start(self):
         threading.Thread(target=self._connectWebSocket, daemon=True).start()
         self.gui()
-    
+
     def stop(self):
         self.ws.close()
 
@@ -215,7 +234,7 @@ class DouyinLiveWebFetcher:
         else:
             self.__ttwid = response.cookies.get('ttwid')
             return self.__ttwid
-    
+
     @property
     def room_id(self):
         """
@@ -238,9 +257,9 @@ class DouyinLiveWebFetcher:
             match = re.search(r'roomId\\":\\"(\d+)\\"', response.text)
             if match is None or len(match.groups()) < 1:
                 print("【X】No match found for roomId")
-            
+
             self.__room_id = match.group(1)
-            
+
             return self.__room_id
 
     def _connectWebSocket(self):
@@ -287,24 +306,24 @@ class DouyinLiveWebFetcher:
 
             print("尝试重新连接...")
             time.sleep(5)  # 等待 5 秒后重试
-    
+
     def _wsOnOpen(self, ws):
         """
         连接建立成功
         """
         print("WebSocket connected.")
-    
+
     def _wsOnMessage(self, ws, message):
         """
         接收到数据
         :param ws: websocket实例
         :param message: 数据
         """
-        
+
         # 根据proto结构体解析对象
         package = PushFrame().parse(message)
         response = Response().parse(gzip.decompress(package.payload))
-        
+
         # 返回直播间服务器链接存活确认消息，便于持续获取数据
         if response.need_ack:
             ack = PushFrame(log_id=package.log_id,
@@ -312,7 +331,7 @@ class DouyinLiveWebFetcher:
                             payload=response.internal_ext.encode('utf-8')
                             ).SerializeToString()
             ws.send(ack, websocket.ABNF.OPCODE_BINARY)
-        
+
         # 根据消息类别解析消息体
         for msg in response.messages_list:
             method = msg.method
@@ -333,10 +352,10 @@ class DouyinLiveWebFetcher:
                 }.get(method)(msg.payload)
             except Exception:
                 pass
-    
+
     def _wsOnError(self, ws, error):
         print("WebSocket error: ", error)
-    
+
     def _wsOnClose(self, ws, *args):
         print("WebSocket connection closed.")
 
@@ -344,7 +363,7 @@ class DouyinLiveWebFetcher:
         unique_id = str(uuid.uuid4())
         output_file = f"msic/MemberMsg_{unique_id}.mp3"
         text = f"{user_name}说：{content}。"
-        play_speech_thread(text, output_file)
+        play_speech_thread(text, output_file, v_num=0)
 
     def _parseChatMsg(self, payload):
         """聊天消息"""
@@ -355,20 +374,20 @@ class DouyinLiveWebFetcher:
         print(f"【聊天msg】[{user_id}]{user_name}: {content}")
         if self.speech_enabled:
             # 如果chat_thread线程已存在并且仍在运行，则不创建新的线程
-            if self.chat_thread is not None and self.chat_thread.is_alive():
+            if self.ws_thread is not None and self.ws_thread.is_alive():
                 print("当前线程正在处理消息，跳过新线程创建。")
                 return
 
             # 启动新线程处理消息
-            self.chat_thread = threading.Thread(target=self.handle_chat_message, args=(user_name, content))
-            self.chat_thread.start()
+            self.ws_thread = threading.Thread(target=self.handle_chat_message, args=(user_name, content))
+            self.ws_thread.start()
 
     def handle_gift_message(self, user_name, gift_name):
         # 生成唯一的语音文件名
         unique_id = str(uuid.uuid4())
         output_file = f"msic/MemberMsg_{unique_id}.mp3"
         text = f"超级感谢{user_name}老板送出的{gift_name}。"
-        play_speech_thread(text, output_file)
+        play_speech_thread(text, output_file, v_num=1)
 
     def _parseGiftMsg(self, payload):
         """礼物消息"""
@@ -379,38 +398,27 @@ class DouyinLiveWebFetcher:
         print(f"【礼物msg】{user_name} 送出了 {gift_name}x{gift_cnt}")
         if self.gift_enabled:
             # 如果chat_thread线程已存在并且仍在运行，则不创建新的线程
-            if self.chat_thread is not None and self.chat_thread.is_alive():
+            if self.ws_thread is not None and self.ws_thread.is_alive():
                 print("当前线程正在处理消息，跳过新线程创建。")
                 return
 
             # 启动新线程处理消息
-            self.chat_thread = threading.Thread(target=self.handle_gift_message, args=(user_name, gift_name))
-            self.chat_thread.start()
-    
+            self.ws_thread = threading.Thread(target=self.handle_gift_message, args=(user_name, gift_name))
+            self.ws_thread.start()
+
     def _parseLikeMsg(self, payload):
         '''点赞消息'''
         message = LikeMessage().parse(payload)
         user_name = message.user.nick_name
         count = message.count
         print(f"【点赞msg】{user_name} 点了{count}个赞")
-        # 检查时间间隔
-        # current_time = time.time()
-        # elapsed_time = current_time - last_play_time["like"]
-        #
-        # if elapsed_time < MIN_INTERVAL:
-        #     wait_time = MIN_INTERVAL - elapsed_time
-        #     print(f"播放频率过高，等待{wait_time:.2f}秒后继续播放")
-        #     time.sleep(wait_time)
-
-        # 更新最后播放时间
-        # last_play_time["like"] = time.time()
 
         # unique_id = str(uuid.uuid4())
         # count_cn = cn2an.an2cn(str(count), "low")
         # output_file = f"msic/MemberMsg_{unique_id}.mp3"
         # text = "感谢" + user_name + f"给主播点了{count_cn}个赞。"
         # threading.Thread(target=play_speech_thread, args=(text, output_file)).start()
-    
+
     def _parseMemberMsg(self, payload):
         '''进入直播间消息'''
         message = MemberMessage().parse(payload)
@@ -424,31 +432,28 @@ class DouyinLiveWebFetcher:
         # output_file = f"msic/MemberMsg_{unique_id}.mp3"
         # text = f"欢迎{user_name}进入直播间。"
         # threading.Thread(target=play_speech_thread, args=(text, output_file)).start()
-    
+
+    def handle_follow_message(self, user_name):
+        # 生成唯一的语音文件名
+        unique_id = str(uuid.uuid4())
+        output_file = f"msic/MemberMsg_{unique_id}.mp3"
+        text = f"感谢{user_name}关注主播。"
+        play_speech_thread(text, output_file, v_num=3)
+
     def _parseSocialMsg(self, payload):
         '''关注消息'''
         message = SocialMessage().parse(payload)
         user_name = message.user.nick_name
         user_id = message.user.id
         print(f"【关注msg】[{user_id}]{user_name} 关注了主播")
-        # if self.gift_enabled:
-        #     # 检查时间间隔
-        #     current_time = time.time()
-        #     elapsed_time = current_time - last_play_time["chat"]
-        #
-        #     if elapsed_time < MIN_INTERVAL:
-        #         wait_time = MIN_INTERVAL - elapsed_time
-        #         print(f"gift频率过高，等待{wait_time:.2f}秒后继续播放")
-        #         time.sleep(wait_time)
-        #
-        #     # 更新最后播放时间
-        #     last_play_time["chat"] = time.time()
-        #
-        #     unique_id = str(uuid.uuid4())
-        #     output_file = f"msic/MemberMsg_{unique_id}.mp3"
-        #     text = f"感谢{user_name}关注主播。"
-        #     threading.Thread(target=play_speech_thread, args=(text, output_file)).start()
-    
+        if self.follow_enabled:
+            if self.ws_thread is not None and self.ws_thread.is_alive():
+                print("当前线程正在处理消息，跳过新线程创建。")
+                return
+            # 启动新线程处理消息
+            self.ws_thread = threading.Thread(target=self.handle_follow_message, args=(user_name,))
+            self.ws_thread.start()
+
     def _parseRoomUserSeqMsg(self, payload):
         '''直播间统计'''
         message = RoomUserSeqMessage().parse(payload)
@@ -458,13 +463,13 @@ class DouyinLiveWebFetcher:
         # 如果有 label，更新显示的数据
         if self.label:
             self.label.config(text=f"当前观看：{current} 人")
-    
+
     def _parseFansclubMsg(self, payload):
         '''粉丝团消息'''
         message = FansclubMessage().parse(payload)
         content = message.content
         print(f"【粉丝团msg】 {content}")
-    
+
     def _parseEmojiChatMsg(self, payload):
         '''聊天表情包消息'''
         message = EmojiChatMessage().parse(payload)
@@ -473,27 +478,27 @@ class DouyinLiveWebFetcher:
         common = message.common
         default_content = message.default_content
         print(f"【聊天表情包id】 {emoji_id},user：{user},common:{common},default_content:{default_content}")
-    
+
     def _parseRoomMsg(self, payload):
         message = RoomMessage().parse(payload)
         common = message.common
         room_id = common.room_id
         print(f"【直播间msg】直播间id:{room_id}")
-    
+
     def _parseRoomStatsMsg(self, payload):
         message = RoomStatsMessage().parse(payload)
         display_long = message.display_long
         print(f"【直播间统计msg】{display_long}")
-    
+
     def _parseRankMsg(self, payload):
         message = RoomRankMessage().parse(payload)
         ranks_list = message.ranks_list
         print(f"【直播间排行榜msg】{ranks_list}")
-    
+
     def _parseControlMsg(self, payload):
         '''直播间状态消息'''
         message = ControlMessage().parse(payload)
-        
+
         if message.status == 3:
             print("直播间已结束")
             self.stop()
