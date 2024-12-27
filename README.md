@@ -31,10 +31,9 @@
 
 ## 安装使用
 
-1. git clone
-2. 安装requirements.txt里的依赖
-3. 在main.py里面填写需要捕获的直播ID
-4. 运行main.py即可
+1. [在releases中下载](https://github.com/xiamuceer-j/DouyinLivetts/releases)
+2. 运行dy-dm.exe
+3. 输入直播ID
 
 # 🌟 English
 
@@ -48,10 +47,9 @@ A simple tool for playing Tik Tok barrage
 
 ## Installation and use
 
-1. git clone
-2. Install the dependencies in requirements.txt
-3. Fill in the live broadcast ID to be captured in main.py
-4. Run main.py
+1. [Download from releases](https://github.com/xiamuceer-j/DouyinLivetts/releases)
+2. Run dy-dm.exe
+3. Enter the live broadcast ID
 
 ## ⭐  Star History or Repobeats
 
