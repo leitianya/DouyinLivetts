@@ -35,6 +35,10 @@
 2. 运行dy-dm.exe
 3. 输入直播ID
 
+
+## 📌 注意事项
+如果觉得好用，可以去赞助一下作者哟：https://mumu-blog.sbs:3389/zanzhu/
+
 # 🌟 English
 
 A simple tool for playing Tik Tok barrage
@@ -50,6 +54,9 @@ A simple tool for playing Tik Tok barrage
 1. [Download from releases](https://github.com/xiamuceer-j/DouyinLivetts/releases)
 2. Run dy-dm.exe
 3. Enter the live broadcast ID
+
+## 📌 Notes
+If you find it useful, you can sponsor the author: https://mumu-blog.sbs:3389/zanzhu/
 
 ## ⭐  Star History or Repobeats
 
