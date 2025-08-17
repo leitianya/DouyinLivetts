@@ -107,4 +107,4 @@ class MessageHandler:
 
     def _parse_rank_msg(self, payload):
         message = RoomRankMessage().parse(payload)
-        log.info(f"【排行】收到排行消息。")
+        log.info(f"【排行】{message}。")

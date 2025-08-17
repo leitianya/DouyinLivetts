@@ -37,7 +37,7 @@
 
 
 ## 📌 注意事项
-如果觉得好用，可以去赞助一下作者哟：https://mumu-blog.sbs:3389/zanzhu/
+如果觉得好用，可以去赞助一下作者哟：https://mumuverse.space:1510/zanzhu/
 
 # 🌟 English
 
@@ -56,7 +56,7 @@ A simple tool for playing Tik Tok barrage
 3. Enter the live broadcast ID
 
 ## 📌 Notes
-If you find it useful, you can sponsor the author: https://mumu-blog.sbs:3389/zanzhu/
+If you find it useful, you can sponsor the author: https://mumuverse.space:1510/zanzhu/
 
 ## ⭐  Star History or Repobeats
 
