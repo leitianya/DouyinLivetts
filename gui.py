@@ -38,9 +38,6 @@ class AppGUI(ctk.CTk):
 
         self._offset_x = 0
         self._offset_y = 0
-        self.bind("<ButtonPress-1>", self._on_press)
-        self.bind("<ButtonRelease-1>", self._on_release)
-        self.bind("<B1-Motion>", self._on_motion)
 
         self._on_mouse_leave()
 
@@ -119,7 +116,7 @@ class AppGUI(ctk.CTk):
         self.label.pack(pady=5)
 
         # Bind dragging to non-interactive widgets to allow buttons to be clicked
-        for widget in [self.main_frame, self.entry_frame, self.checkbox_frame, self.label]:
+        for widget in [self.main_frame, self.label]:
             widget.bind("<ButtonPress-1>", self._on_press)
             widget.bind("<ButtonRelease-1>", self._on_release)
             widget.bind("<B1-Motion>", self._on_motion)
@@ -151,7 +148,7 @@ class AppGUI(ctk.CTk):
             self._is_hidden = True
             x = self.winfo_x()
             height = self.winfo_height()
-            new_y = -(height - 50)
+            new_y = -int(height * 0.65)  # 隐藏90%的高度
             self.geometry(f"+{x}+{new_y}")
 
     def _show_window(self):
